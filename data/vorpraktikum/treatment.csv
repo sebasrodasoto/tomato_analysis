@@ -1,0 +1,7 @@
+box,treatment,treatment_abbrev,salt_stress,has_extract
+B1,Salicornia extract (salt stress),SAL,TRUE,TRUE
+B2,Salicornia extract (salt stress),SAL,TRUE,TRUE
+B3,Strandaster extract (salt stress),STR,TRUE,TRUE
+B4,Strandaster extract (salt stress),STR,TRUE,TRUE
+B5,Control (no salt),CTRL0,FALSE,FALSE
+B6,Salt control (no extract),SALT_CTRL,TRUE,FALSE

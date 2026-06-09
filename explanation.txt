@@ -1,0 +1,70 @@
+Overview — two separate pipelines (do not mix data sources)
+
+MAIN EXPERIMENT
+- Script: R/01_explore.R
+- Data source: C:/Users/sebas/Downloads/2026Main_Versuch Harvest_Rodas.xlsx
+- Treatment map: Treatment sheet in workbook, or data/raw/treatment.csv as fallback
+- Key response sheets: Fruit w. weight, Biomasse w. weight
+- Outputs: outputs/plots, outputs/tables, outputs/diagnostics, outputs/summary_* CSVs
+
+VORPRAKTIKUM MINIPROJECT
+- Script: R/02_vorpraktikum.R
+- Data source: C:/Users/sebas/Documents/Vorpraktikum_msc2025_ohneduplicate.xlsx
+- Treatment map: data/vorpraktikum/treatment.csv (B1–B6 design from protocol)
+- Key sheets: Fruits_Tomato_Data_Table (2), Biomasse, Roots_Data_Table (1)
+- Outputs: outputs_vorpraktikum/plots, outputs_vorpraktikum/tables, outputs_vorpraktikum/diagnostics
+
+Pipeline steps
+1) Setup
+   - Sets library path and loads readxl, dplyr, ggplot2, readr, broom.
+   - Defines paths, output folders, and helper functions for CI and p-value formatting.
+2) Treatment map
+   - Reads Treatment sheet from the workbook if present; otherwise loads data/raw/treatment.csv.
+   - Renames columns to box/treatment, factors them, adds replicate ID (rep) per treatment, and creates short abbreviations (abbrev) for cleaner graphs.
+3) Sheet analysis (runs for Fruit and Biomass)
+   - Loads sheet, standardizes column names, attaches treatment+rep info.
+   - Summaries: overall stats; by_box (box, treatment, rep); by_treatment (n, mean, sd, median, IQR, min, max, number of boxes).
+   - Replicate comparison: box-level table with mean, sd, SE, 95% CI, deviation from treatment mean, z-score within treatment (replicate_compare_*).
+   - Outliers: 1.5*IQR rule overall, by treatment, and by treatment+box. CSVs in outputs/tables/outliers_*_sheet.csv showing limits and flags per row.
+   - ANOVA: one-way on treatment; reports eta² effect size; writes ANOVA table to outputs/tables/anova_*.csv.
+   - Tukey HSD: pairwise treatment comparisons; writes outputs/tables/tukey_*.csv.
+   - Non-parametric: Kruskal–Wallis (kruskal_*.csv) + Dunn pairwise with BH adjust (dunn_*.csv).
+   - Mixed model: random intercept for box, fixed treatment (lmer_anova_*.csv, lmer_fixed_*.csv).
+   - Diagnostics: residual Shapiro-W and Bartlett tests; writes outputs/diagnostics/diagnostics_*.txt.
+   - Letters: compact-letter display (CLD) saved to outputs/tables/letters_*_sheet.csv and drawn on boxplots. Same letter = not significantly different at α=0.05; different letters = significant difference.
+   - Plots: treatment boxplots with mean±CI (no replicate markers), ordered Control → 60 mM → 90 mM, x-axis uses abbreviations; subtitles show ANOVA/Tukey p-values with significance stars; letters drawn above boxes. Histograms per sheet. Scatter is colored by treatment abbreviation.
+4) Correlation
+   - Merges fruit and biomass by sample_nr, attaches treatment/rep.
+   - Pearson and Spearman correlations saved to outputs/correlation_fruit_vs_biomass.csv.
+   - Scatter plot colored by treatment, shaped by replicate.
+
+How to run
+- Main experiment: & "C:/Program Files/R/R-4.5.2/bin/Rscript.exe" "R/01_explore.R"
+- Vorpraktikum:     & "C:/Program Files/R/R-4.5.2/bin/Rscript.exe" "R/02_vorpraktikum.R"
+- Run from project root: C:/Users/sebas/Downloads/tomato_analysis
+
+Interpreting results
+- Diagnostics: check diagnostics_*.txt for Shapiro (normality of residuals) and Bartlett (variance equality). Small p (<0.05) flags assumption issues; consider non-parametric tests if violated.
+- ANOVA tables: p_value shows overall treatment effect; eta2 gives effect size proportion of variance explained.
+- Tukey tables: adj.p.value shows which treatment pairs differ; small values indicate significant differences between those treatments. Letters on boxplots mirror Tukey results: treatments sharing a letter are not significantly different; different letters indicate significant pairwise differences.
+- Non-parametric: kruskal_*.csv gives overall rank test; dunn_*.csv gives BH-adjusted pairwise p-values.
+- Mixed model: lmer_anova_*.csv shows treatment effect with box as random intercept; lmer_fixed_*.csv lists fixed-effect estimates.
+- Letters tables: see outputs/tables/letters_Fruit_w_weight.csv and letters_Biomasse_w_weight.csv for the letter assigned to each treatment.
+- Boxplots: subtitle lists ANOVA p and min Tukey p; look for separation of medians/means and non-overlapping CIs. Letters summarize pairwise differences visually.
+- Outliers: outliers_* files list rows flagged by 1.5*IQR. Use treatment-level outliers first (more conservative than overall) and review whether they reflect data entry issues or true extremes before removing.
+- Correlation: correlation_fruit_vs_biomass.csv shows strength of association between fruit and biomass; scatter plot shows pattern by treatment and replicate.
+
+High-level interpretation (current run)
+- Both responses (fruit and biomass) show significant overall treatment effects (ANOVA p << 0.001; see plot subtitles and anova_*.csv).
+- Tukey letters on boxplots indicate which treatments differ: treatments with distinct letters are significantly different at α=0.05. Use the Tukey tables for exact pairs and adjusted p-values.
+- Biomass: controls cluster higher than several treated groups; lowest biomass in higher-salt Salicornia treatments; see letters for exact grouping.
+- Fruit: similar pattern with reduced yield in higher-salt Salicornia groups compared to controls/Strandaster; consult letters/Tukey tables for specific pairs.
+
+Additional analyses possible with current data
+- Non-parametric: Kruskal–Wallis by treatment with Dunn or pairwise Wilcoxon (BH correction) if assumptions fail.
+- Mixed models: if boxes are true random replicates, fit linear mixed model with random intercept for box and fixed treatment.
+- Contrasts: planned contrasts (e.g., each treatment vs control) using emmeans with Tukey/Bonferroni or Dunnett adjustments.
+- Variance focus: Levene test and plot residuals vs fitted to inspect heteroscedasticity; consider weighted least squares if needed.
+- Distribution: QQ plots of residuals per response; density/violin plots by treatment.
+- Power/post-hoc: estimate detectable effect sizes given current sample sizes (per treatment, per box).
+- Correlation robustness: Kendall’s tau or Spearman with exact=FALSE to avoid tie warnings.
